@@ -1,3 +1,4 @@
+<img width="1376" height="768" alt="Gemini_Generated_Image_j6c1yfj6c1yfj6c1" src="https://github.com/user-attachments/assets/5de5a0fb-b1dd-421f-8568-892373cfaba4" />
 # ⚡ Quick Commerce Admin
 
 A modern **Quick Commerce Admin Dashboard** for managing orders, stores, riders, inventory, customers, pricing, and real-time delivery operations.

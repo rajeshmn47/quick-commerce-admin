@@ -1,16 +1,117 @@
-# React + Vite
+# ⚡ Quick Commerce Admin
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+A modern **Quick Commerce Admin Dashboard** for managing orders, stores, riders, inventory, customers, pricing, and real-time delivery operations.
 
-Currently, two official plugins are available:
+Built as part of a full-stack quick-commerce platform inspired by the operational systems behind modern grocery and delivery platforms.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## 🚀 Overview
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Quick Commerce Admin provides a centralized control panel for managing the operational side of a rapid-delivery business.
 
-## Expanding the Oxlint configuration
+Instead of having separate tools for orders, stores, riders, inventory, and customers, the platform brings these operations together into one dashboard.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+### Core Operations
+
+- 📦 Order Management
+- 🚴 Rider Management
+- 🏬 Store Management
+- 📊 Real-time Operations Dashboard
+- 📍 Live Delivery Tracking
+- 🛒 Inventory Management
+- 💰 Store-level Pricing
+- 👥 Customer Management
+- 🎫 Customer Support
+- 📈 Operational Analytics
+
+---
+
+## ✨ Features
+
+### 📦 Order Management
+
+Manage the complete order lifecycle:
+
+- New orders
+- Order acceptance
+- Picking
+- Packing
+- Rider assignment
+- Out for delivery
+- Delivered
+- Cancelled orders
+- Failed deliveries
+
+Track important order information including:
+
+- Customer
+- Store
+- Rider
+- Items
+- Payment
+- Order status
+- Delivery time
+
+---
+
+### 🚴 Rider Management
+
+Manage delivery partners from the admin panel.
+
+- Rider profiles
+- Rider availability
+- Active deliveries
+- Order assignments
+- Delivery status
+- Rider performance
+- Delivery history
+
+---
+
+### 🏬 Store Management
+
+Manage multiple dark stores from a centralized dashboard.
+
+- Store locations
+- Store capacity
+- Store status
+- Current inventory
+- Active orders
+- Store performance
+- Replenishment requirements
+
+---
+
+### 🛒 Inventory Management
+
+Track inventory across individual stores.
+
+The system can be extended to support:
+
+- Current stock
+- Low-stock alerts
+- Warehouse stock
+- Store replenishment
+- Inventory transfers
+- Batch tracking
+- Perishable products
+- Expiry tracking
+- Waste tracking
+- Inventory adjustments
+
+---
+
+### 🥬 Perishable Inventory
+
+Designed to support grocery products with different shelf lives.
+
+Example:
+
+```text
+Tomato
+├── Batch: TOM-001
+├── Received: 2026-08-18
+├── Expiry: 2026-08-21
+├── Remaining: 120 units
+└── Status: ⚠ Expiring Soon

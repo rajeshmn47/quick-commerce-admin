@@ -8,7 +8,6 @@ Built as part of a full-stack quick-commerce platform inspired by the<img width=
 
 ---<img width="1376" height="768" alt="Gemini_Generated_Image_i6driei6driei6dr" src="https://github.com/user-attachments/assets/7e12422f-7993-4cff-9f15-9855ced66738" />
 
-![Uploading Gemini_Generated_Image_2jmhna2jmhna2jmh.png…]()
 
 ## 🚀 Overview
 

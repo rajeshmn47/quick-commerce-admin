@@ -26,6 +26,15 @@ function StoreDetail() {
     // ─── STATS ───
     const [totalOrdersCount, setTotalOrdersCount] = useState(0);
     const [deliveredOrdersCount, setDeliveredOrdersCount] = useState(0);
+    const [orderStatusCounts, setOrderStatusCounts] = useState({
+        pending: 0,
+        picking: 0,
+        dispatched: 0,
+        delivered: 0,
+        cancelled: 0,
+    });
+    const [pickers, setPickers] = useState([]);
+    const [complaintsCount, setComplaintsCount] = useState(0);
 
     // ─── ACTIVE SECTION ───
     const [activeSection, setActiveSection] = useState('store');
@@ -39,7 +48,6 @@ function StoreDetail() {
     const [ordersPage, setOrdersPage] = useState(1);
     const [ordersLimit] = useState(10);
     const [ordersTotal, setOrdersTotal] = useState(0);
-
     const [invPage, setInvPage] = useState(1);
     const [invLimit] = useState(8);
 
@@ -101,11 +109,10 @@ function StoreDetail() {
             setOrdersLoading(true);
             let url = `/orders/store/${id}?page=${page}&limit=${limit}`;
             if (orderStatusFilter) url += `&status=${orderStatusFilter}`;
-            // Add sorting
             url += `&sortField=${orderSortField}&sortOrder=${orderSortOrder}`;
             const res = await api.get(url);
             setOrders(res.data.data || []);
-            setOrdersTotal(res.data.data.count || 0);
+            setOrdersTotal(res.data.count || 0);
         } catch (err) {
             console.error('Error fetching store orders:', err);
             setOrders([]);
@@ -127,6 +134,38 @@ function StoreDetail() {
         }
     };
 
+    const fetchPickers = async () => {
+        try {
+            // Adjust endpoint to match your backend
+            const res = await api.get(`/stores/${id}/pickers`);
+            setPickers(res.data.data || []);
+        } catch (err) {
+            console.error('Error fetching pickers:', err);
+            setPickers([]);
+        }
+    };
+
+    const fetchComplaints = async () => {
+        try {
+            // Adjust endpoint to match your backend
+            const res = await api.get(`/orders/store/${id}/complaints?count=true`);
+            setComplaintsCount(res.data.count || 0);
+        } catch (err) {
+            console.error('Error fetching complaints:', err);
+            setComplaintsCount(0);
+        }
+    };
+
+    const fetchOrderStatusStats = async () => {
+        try {
+            const res = await api.get(`/orders/store/${id}/stats`);
+            setOrderStatusCounts(res.data.data || { pending: 0, picking: 0, dispatched: 0, delivered: 0, cancelled: 0 });
+        } catch (err) {
+            console.error('Error fetching order status stats:', err);
+            setOrderStatusCounts({ pending: 0, picking: 0, dispatched: 0, delivered: 0, cancelled: 0 });
+        }
+    };
+
     // ─── FETCH ALL ───
     const fetchAll = async () => {
         setLoading(true);
@@ -135,15 +174,17 @@ function StoreDetail() {
             fetchInventory(),
             fetchProducts(),
             fetchStoreOrders(1),
-            fetchRiders()
+            fetchRiders(),
+            fetchPickers(),
+            fetchComplaints(),
+            fetchOrderStatusStats(),
         ]);
 
         // ─── FETCH STATS (Total & Delivered) ───
         try {
-            const totalRes = await api.get(`/orders/store/${id}`);
-            console.log(totalRes.data)
-            setTotalOrdersCount(totalRes.data.count || 10);
-            const deliveredRes = await api.get(`/orders/store/${id}?status=delivered`);
+            const totalRes = await api.get(`/orders/store/${id}?limit=0`);
+            setTotalOrdersCount(totalRes.data.count || 0);
+            const deliveredRes = await api.get(`/orders/store/${id}?status=delivered&limit=0`);
             setDeliveredOrdersCount(deliveredRes.data.count || 0);
         } catch (err) {
             console.error('Error fetching order stats:', err);
@@ -414,9 +455,7 @@ function StoreDetail() {
                 >
                     ← Previous
                 </button>
-                <span className="text-gray-600">
-                    Page {page} of {totalPages}
-                </span>
+                <span className="text-gray-600">Page {page} of {totalPages}</span>
                 <button
                     onClick={() => onPageChange(page + 1)}
                     disabled={page >= totalPages || loading}
@@ -472,11 +511,10 @@ function StoreDetail() {
                                 setSelectedInventory(null);
                             }
                         }}
-                        className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition flex items-center gap-2 ${
-                            activeSection === section.id
+                        className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition flex items-center gap-2 ${activeSection === section.id
                                 ? 'bg-blue-50 text-blue-600'
                                 : 'text-gray-700 hover:bg-gray-50'
-                        }`}
+                            }`}
                     >
                         <span className="text-base">{section.label.split(' ')[0]}</span>
                         <span>{section.label.split(' ').slice(1).join(' ')}</span>
@@ -501,16 +539,11 @@ function StoreDetail() {
                     <div>
                         <h1 className="text-3xl font-bold text-gray-900">{store.name}</h1>
                         <p className="text-gray-600 mt-1">{store.address}</p>
-                        {store.description && (
-                            <p className="text-gray-500 mt-2">{store.description}</p>
-                        )}
+                        {store.description && <p className="text-gray-500 mt-2">{store.description}</p>}
                     </div>
                     <span
-                        className={`px-3 py-1 text-sm font-semibold rounded-full ${
-                            store.isActive
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-red-100 text-red-800'
-                        }`}
+                        className={`px-3 py-1 text-sm font-semibold rounded-full ${store.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            }`}
                     >
                         {store.isActive ? '🟢 Active' : '🔴 Inactive'}
                     </span>
@@ -518,9 +551,7 @@ function StoreDetail() {
             </div>
             <div className="p-6 grid grid-cols-2 gap-6">
                 <div>
-                    <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">
-                        Coordinates
-                    </h3>
+                    <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">Coordinates</h3>
                     <p className="text-gray-800 mt-1">
                         Latitude: {store.location?.coordinates?.[1] || 'N/A'}
                     </p>
@@ -529,38 +560,82 @@ function StoreDetail() {
                     </p>
                 </div>
                 <div>
-                    <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">
-                        Operating Hours
-                    </h3>
+                    <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">Operating Hours</h3>
                     <p className="text-gray-800 mt-1">{store.operating_hours || 'Not specified'}</p>
                 </div>
             </div>
 
-            {/* ─── STORE STATS ─── */}
+            {/* ─── ORDER STATUS BREAKDOWN ─── */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4 p-6 border-t bg-gray-50">
-                <div className="text-center">
+                <div className="text-center bg-white rounded-lg shadow-sm p-3">
+                    <div className="text-2xl font-bold text-yellow-600">{orderStatusCounts.pending || 0}</div>
+                    <div className="text-xs text-gray-500">Pending</div>
+                </div>
+                <div className="text-center bg-white rounded-lg shadow-sm p-3">
+                    <div className="text-2xl font-bold text-blue-600">{orderStatusCounts.picking || 0}</div>
+                    <div className="text-xs text-gray-500">Picking</div>
+                </div>
+                <div className="text-center bg-white rounded-lg shadow-sm p-3">
+                    <div className="text-2xl font-bold text-purple-600">{orderStatusCounts.dispatched || 0}</div>
+                    <div className="text-xs text-gray-500">Dispatched</div>
+                </div>
+                <div className="text-center bg-white rounded-lg shadow-sm p-3">
+                    <div className="text-2xl font-bold text-green-600">{orderStatusCounts.delivered || 0}</div>
+                    <div className="text-xs text-gray-500">Delivered</div>
+                </div>
+                <div className="text-center bg-white rounded-lg shadow-sm p-3">
+                    <div className="text-2xl font-bold text-red-600">{orderStatusCounts.cancelled || 0}</div>
+                    <div className="text-xs text-gray-500">Cancelled</div>
+                </div>
+            </div>
+
+            {/* ─── ENHANCED STORE STATS ─── */}
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 p-6 border-t bg-gradient-to-b from-gray-50 to-white">
+                <div className="text-center bg-white rounded-lg shadow-sm p-3">
                     <div className="text-2xl font-bold text-blue-600">{totalOrdersCount}</div>
                     <div className="text-xs text-gray-500">Total Orders</div>
                 </div>
-                <div className="text-center">
+                <div className="text-center bg-white rounded-lg shadow-sm p-3">
                     <div className="text-2xl font-bold text-green-600">{deliveredOrdersCount}</div>
-                    <div className="text-xs text-gray-500">Completed Orders</div>
+                    <div className="text-xs text-gray-500">Completed</div>
                 </div>
-                <div className="text-center">
+                <div className="text-center bg-white rounded-lg shadow-sm p-3">
                     <div className="text-2xl font-bold text-purple-600">{riderStats.total}</div>
                     <div className="text-xs text-gray-500">Total Riders</div>
                 </div>
-                <div className="text-center">
-                    <div className="text-2xl font-bold text-orange-600">{inventory.length}</div>
-                    <div className="text-xs text-gray-500">Inventory Items</div>
+                <div className="text-center bg-white rounded-lg shadow-sm p-3">
+                    <div className="text-2xl font-bold text-indigo-600">{riderStats.available}</div>
+                    <div className="text-xs text-gray-500">Available Riders</div>
                 </div>
-                <div className="text-center">
-                    <div className="text-2xl font-bold text-red-600">
-                        {inventory.filter(item => item.stock_quantity <= item.low_stock_threshold).length}
-                    </div>
-                    <div className="text-xs text-gray-500">Low Stock</div>
+                <div className="text-center bg-white rounded-lg shadow-sm p-3">
+                    <div className="text-2xl font-bold text-orange-600">{pickers.length}</div>
+                    <div className="text-xs text-gray-500">Pickers</div>
+                </div>
+                <div className="text-center bg-white rounded-lg shadow-sm p-3">
+                    <div className="text-2xl font-bold text-red-600">{complaintsCount}</div>
+                    <div className="text-xs text-gray-500">Complaints</div>
                 </div>
             </div>
+
+            {/* ─── PICKERS SECTION ─── */}
+            {pickers.length > 0 && (
+                <div className="p-6 border-t">
+                    <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-3">🧑‍🍳 Pickers</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {pickers.map((picker) => (
+                            <div key={picker._id} className="bg-gray-50 rounded-lg p-3 flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
+                                    {picker.name?.[0] || 'P'}
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium">{picker.name}</p>
+                                    <p className="text-xs text-gray-500">{picker.phone}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
     );
 
@@ -568,7 +643,9 @@ function StoreDetail() {
         <div ref={ridersRef} className="bg-white rounded-xl shadow-lg overflow-hidden scroll-mt-6">
             <div className="p-6 border-b">
                 <h3 className="text-xl font-semibold text-gray-800">🏍️ Delivery Riders</h3>
-                <p className="text-sm text-gray-500">Riders currently checked in at this store</p>
+                <p className="text-sm text-gray-500">
+                    Riders currently checked in at this store · {riderStats.total} total, {riderStats.available} available
+                </p>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-6 border-b">
@@ -597,40 +674,22 @@ function StoreDetail() {
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
-                                <th
-                                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:text-gray-700 select-none"
-                                    onClick={() => handleRiderSort('name')}
-                                >
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:text-gray-700 select-none" onClick={() => handleRiderSort('name')}>
                                     Rider {getRiderSortIcon('name')}
                                 </th>
-                                <th
-                                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:text-gray-700 select-none"
-                                    onClick={() => handleRiderSort('phone')}
-                                >
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:text-gray-700 select-none" onClick={() => handleRiderSort('phone')}>
                                     Phone {getRiderSortIcon('phone')}
                                 </th>
-                                <th
-                                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:text-gray-700 select-none"
-                                    onClick={() => handleRiderSort('store')}
-                                >
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:text-gray-700 select-none" onClick={() => handleRiderSort('store')}>
                                     Store {getRiderSortIcon('store')}
                                 </th>
-                                <th
-                                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:text-gray-700 select-none"
-                                    onClick={() => handleRiderSort('status')}
-                                >
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:text-gray-700 select-none" onClick={() => handleRiderSort('status')}>
                                     Status {getRiderSortIcon('status')}
                                 </th>
-                                <th
-                                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:text-gray-700 select-none"
-                                    onClick={() => handleRiderSort('activeOrders')}
-                                >
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:text-gray-700 select-none" onClick={() => handleRiderSort('activeOrders')}>
                                     Active Orders {getRiderSortIcon('activeOrders')}
                                 </th>
-                                <th
-                                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:text-gray-700 select-none"
-                                    onClick={() => handleRiderSort('deliveries')}
-                                >
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:text-gray-700 select-none" onClick={() => handleRiderSort('deliveries')}>
                                     Deliveries {getRiderSortIcon('deliveries')}
                                 </th>
                             </tr>
@@ -668,7 +727,12 @@ function StoreDetail() {
     const renderOrders = () => (
         <div ref={ordersRef} className="bg-white rounded-xl shadow-lg overflow-hidden scroll-mt-6">
             <div className="p-6 border-b flex flex-wrap justify-between items-center gap-3">
-                <h3 className="text-xl font-semibold text-gray-800">📋 Orders</h3>
+                <div>
+                    <h3 className="text-xl font-semibold text-gray-800">📋 Orders</h3>
+                    <p className="text-sm text-gray-500">
+                        {ordersTotal > 0 ? `Showing ${orders.length} of ${ordersTotal} orders` : 'No orders'}
+                    </p>
+                </div>
                 <div className="flex items-center gap-3">
                     <select
                         value={orderStatusFilter}
@@ -698,34 +762,19 @@ function StoreDetail() {
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
-                                    <th
-                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:text-gray-700 select-none"
-                                        onClick={() => handleOrderSort('_id')}
-                                    >
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:text-gray-700 select-none" onClick={() => handleOrderSort('_id')}>
                                         Order ID {getOrderSortIcon('_id')}
                                     </th>
-                                    <th
-                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:text-gray-700 select-none"
-                                        onClick={() => handleOrderSort('customerName')}
-                                    >
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:text-gray-700 select-none" onClick={() => handleOrderSort('customerName')}>
                                         Customer {getOrderSortIcon('customerName')}
                                     </th>
-                                    <th
-                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:text-gray-700 select-none"
-                                        onClick={() => handleOrderSort('totalAmount')}
-                                    >
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:text-gray-700 select-none" onClick={() => handleOrderSort('totalAmount')}>
                                         Total {getOrderSortIcon('totalAmount')}
                                     </th>
-                                    <th
-                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:text-gray-700 select-none"
-                                        onClick={() => handleOrderSort('status')}
-                                    >
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:text-gray-700 select-none" onClick={() => handleOrderSort('status')}>
                                         Status {getOrderSortIcon('status')}
                                     </th>
-                                    <th
-                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:text-gray-700 select-none"
-                                        onClick={() => handleOrderSort('createdAt')}
-                                    >
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:text-gray-700 select-none" onClick={() => handleOrderSort('createdAt')}>
                                         Date {getOrderSortIcon('createdAt')}
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
@@ -749,7 +798,9 @@ function StoreDetail() {
                                             {new Date(order.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                            <Link to={`/orders/${order._id}`} className="text-blue-600 hover:text-blue-800 transition">👁️ View</Link>
+                                            <Link to={`/orders/${order._id}`} className="text-blue-600 hover:text-blue-800 transition">
+                                                👁️ View
+                                            </Link>
                                         </td>
                                     </tr>
                                 ))}
@@ -770,7 +821,6 @@ function StoreDetail() {
     const renderInventory = () => (
         <div ref={inventoryRef} className="bg-white rounded-xl shadow-lg overflow-hidden scroll-mt-6">
             {selectedInventory ? (
-                // ─── INVENTORY FOCUS VIEW ───
                 <div>
                     <div className="p-6 border-b flex justify-between items-center">
                         <h2 className="text-2xl font-bold text-gray-800">
@@ -814,7 +864,6 @@ function StoreDetail() {
                     </div>
                 </div>
             ) : (
-                // ─── INVENTORY TABLE ───
                 <>
                     <div className="p-6 border-b flex flex-wrap justify-between items-center gap-3">
                         <div className="flex items-center gap-4 flex-1 min-w-[200px]">
@@ -834,11 +883,10 @@ function StoreDetail() {
                         <button
                             onClick={openAddInventory}
                             disabled={availableProducts.length === 0}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap ${
-                                availableProducts.length === 0
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap ${availableProducts.length === 0
                                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                                     : 'bg-blue-600 text-white hover:bg-blue-700'
-                            }`}
+                                }`}
                         >
                             + Add Product
                         </button>

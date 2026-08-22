@@ -6,6 +6,7 @@ function Store() {
     // ----- STATE -----
     const [stores, setStores] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [riderCounts, setRiderCounts] = useState({}); // storeId -> count
     const [showModal, setShowModal] = useState(false);
     const [editingStore, setEditingStore] = useState(null);
     const [formData, setFormData] = useState({
@@ -26,7 +27,7 @@ function Store() {
     const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'active', 'inactive'
     const [orderStatusFilter, setOrderStatusFilter] = useState(''); // order status filter
 
-    // ----- FETCH STORES -----
+    // ----- FETCH STORES & RIDER COUNTS -----
     const fetchStores = async () => {
         try {
             const res = await api.get('/stores/all_stores');
@@ -39,8 +40,33 @@ function Store() {
         }
     };
 
+    const fetchRiderCounts = async () => {
+        try {
+            // Fetch all riders (only need their currentStoreId)
+            const res = await api.get('/riders'); // adjust endpoint if needed
+            const riders = res.data.data || [];
+            const counts = {};
+            riders.forEach(rider => {
+                const storeId = rider.currentStoreId?._id || rider.currentStoreId;
+                if (storeId) {
+                    counts[storeId] = (counts[storeId] || 0) + 1;
+                }
+            });
+            setRiderCounts(counts);
+        } catch (err) {
+            console.error('Failed to fetch rider counts:', err);
+            // Silently fail – riders column will show 0
+        }
+    };
+
     useEffect(() => {
-        fetchStores();
+        const fetchAll = async () => {
+            setLoading(true);
+            await fetchStores();
+            await fetchRiderCounts();
+            setLoading(false);
+        };
+        fetchAll();
     }, []);
 
     // ----- SORT & FILTER LOGIC -----
@@ -63,22 +89,36 @@ function Store() {
 
         // 3️⃣ Sort
         result.sort((a, b) => {
-            let valA = a[sortField] ?? 0;
-            let valB = b[sortField] ?? 0;
+            let valA, valB;
 
-            // For nested fields
-            if (sortField === 'pendingOrders') {
-                // Sum all non-delivered, non-cancelled
-                const pending = (a.orderCounts?.pending || 0) + 
-                                (a.orderCounts?.accepted || 0) + 
-                                (a.orderCounts?.picking || 0) + 
-                                (a.orderCounts?.dispatched || 0);
-                const pendingB = (b.orderCounts?.pending || 0) + 
-                                 (b.orderCounts?.accepted || 0) + 
-                                 (b.orderCounts?.picking || 0) + 
-                                 (b.orderCounts?.dispatched || 0);
-                valA = pending;
-                valB = pendingB;
+            switch (sortField) {
+                case 'name':
+                    valA = a.name || '';
+                    valB = b.name || '';
+                    break;
+                case 'completedOrders':
+                    valA = a.completedOrders || 0;
+                    valB = b.completedOrders || 0;
+                    break;
+                case 'pendingOrders':
+                    const pendingA = (a.orderCounts?.pending || 0) +
+                        (a.orderCounts?.accepted || 0) +
+                        (a.orderCounts?.picking || 0) +
+                        (a.orderCounts?.dispatched || 0);
+                    const pendingB = (b.orderCounts?.pending || 0) +
+                        (b.orderCounts?.accepted || 0) +
+                        (b.orderCounts?.picking || 0) +
+                        (b.orderCounts?.dispatched || 0);
+                    valA = pendingA;
+                    valB = pendingB;
+                    break;
+                case 'riders':
+                    valA = riderCounts[a._id] || 0;
+                    valB = riderCounts[b._id] || 0;
+                    break;
+                default:
+                    valA = a[sortField] ?? 0;
+                    valB = b[sortField] ?? 0;
             }
 
             if (typeof valA === 'string') {
@@ -262,7 +302,7 @@ function Store() {
                             <option value="inactive">Inactive</option>
                         </select>
 
-                        {/* 🆕 Order status filter */}
+                        {/* Order status filter */}
                         <select
                             value={orderStatusFilter}
                             onChange={(e) => setOrderStatusFilter(e.target.value)}
@@ -301,6 +341,10 @@ function Store() {
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:text-gray-700" onClick={() => handleSort('pendingOrders')}>
                                     Active Orders {sortField === 'pendingOrders' && (sortOrder === 'asc' ? '↑' : '↓')}
                                 </th>
+                                {/* NEW: Riders column */}
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:text-gray-700" onClick={() => handleSort('riders')}>
+                                    Riders {sortField === 'riders' && (sortOrder === 'asc' ? '↑' : '↓')}
+                                </th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                             </tr>
@@ -319,7 +363,6 @@ function Store() {
                                 else if (totalActive > 0) activeBadge = '🟢 Low';
                                 else activeBadge = '✅ None';
 
-                                // Show order breakdown as tooltip or small text
                                 const statusBreakdown = [];
                                 if (pending > 0) statusBreakdown.push(`Pending: ${pending}`);
                                 if (accepted > 0) statusBreakdown.push(`Accepted: ${accepted}`);
@@ -344,6 +387,12 @@ function Store() {
                                                     {statusBreakdown.join(' · ')}
                                                 </div>
                                             )}
+                                        </td>
+                                        {/* NEW: Riders cell */}
+                                        <td className="px-6 py-4 text-center">
+                                            <span className="font-medium text-blue-600">
+                                                {riderCounts[store._id] || 0}
+                                            </span>
                                         </td>
                                         <td className="px-6 py-4">
                                             <span className={`px-2 py-1 text-xs font-semibold rounded-full ${store.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
@@ -380,7 +429,7 @@ function Store() {
                 </div>
             </div>
 
-            {/* ----- MODAL (Popup for Create/Edit) ----- */}
+            {/* ----- MODAL (Popup for Create/Edit) – unchanged ----- */}
             {showModal && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-8 max-h-[90vh] overflow-y-auto">
@@ -389,7 +438,6 @@ function Store() {
                         </h2>
 
                         <form onSubmit={handleSubmit} className="space-y-4">
-                            {/* Store Name */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Store Name *</label>
                                 <input
@@ -403,7 +451,6 @@ function Store() {
                                 />
                             </div>
 
-                            {/* Address */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Address *</label>
                                 <input
@@ -417,7 +464,6 @@ function Store() {
                                 />
                             </div>
 
-                            {/* LOCATION HELPER */}
                             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                                 <label className="block text-sm font-medium text-blue-700 mb-1">
                                     📍 Paste Google Maps Link to Auto-Fill Coordinates
@@ -443,7 +489,6 @@ function Store() {
                                 </p>
                             </div>
 
-                            {/* Latitude & Longitude */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Latitude *</label>
@@ -473,7 +518,6 @@ function Store() {
                                 </div>
                             </div>
 
-                            {/* Operating Hours */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Operating Hours</label>
                                 <input
@@ -486,7 +530,6 @@ function Store() {
                                 />
                             </div>
 
-                            {/* Description */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
                                 <textarea
@@ -499,7 +542,6 @@ function Store() {
                                 />
                             </div>
 
-                            {/* Active Status Toggle */}
                             <div className="flex items-center gap-3">
                                 <input
                                     type="checkbox"
@@ -514,7 +556,6 @@ function Store() {
                                 </label>
                             </div>
 
-                            {/* Submit Buttons */}
                             <div className="flex gap-3 pt-4 border-t">
                                 <button
                                     type="submit"
